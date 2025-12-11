@@ -1,13 +1,26 @@
 #!/bin/bash
 set -e
 
+echo "==> Starting entrypoint script..."
+
 # Usar puerto de Railway
 export PORT=${PORT:-8080}
-sed -i "s/listen 8080;/listen $PORT;/" /etc/nginx/sites-available/default
+echo "==> Using PORT: $PORT"
 
-echo "==> Ejecutando migraciones..."
-php artisan migrate --force || echo "Warning: Migrations failed"
+# Actualizar configuración de Nginx
+if [ -f /etc/nginx/sites-available/default ]; then
+    sed -i "s/listen [0-9]*;/listen $PORT;/" /etc/nginx/sites-available/default
+    echo "==> Nginx configured for port $PORT"
+fi
 
-echo "==> Iniciando Nginx + PHP-FPM en puerto $PORT..."
-service nginx start
+# Ejecutar migraciones
+echo "==> Running migrations..."
+php artisan migrate --force || echo "Warning: Migrations failed or already up to date"
+
+# Iniciar Nginx en background
+echo "==> Starting Nginx..."
+nginx -g 'daemon off;' &
+
+# Iniciar PHP-FPM en foreground
+echo "==> Starting PHP-FPM..."
 exec php-fpm
