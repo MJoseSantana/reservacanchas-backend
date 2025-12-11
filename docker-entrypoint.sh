@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Descubrir paquetes de Laravel (necesario porque se instaló con --no-scripts)
-echo "Descubriendo paquetes de Laravel..."
-php artisan package:discover --ansi || true
-
 # Generar APP_KEY si no existe
 if [ -z "$APP_KEY" ]; then
     echo "Generando APP_KEY..."

@@ -27,8 +27,8 @@ WORKDIR /var/www/html
 # Copiar archivos del proyecto
 COPY . .
 
-# Instalar dependencias de PHP sin ejecutar scripts de post-install
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+# Instalar dependencias de PHP (ahora con scripts, ya que sanctum.php está corregido)
+RUN composer install --no-dev --optimize-autoloader
 
 # Configurar permisos
 RUN chown -R www-data:www-data /var/www/html \
