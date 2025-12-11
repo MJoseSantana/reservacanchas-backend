@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = []
+
+[phases.install]
+cmds = ["echo 'Using Dockerfile - skip nixpacks'"]
+
+[phases.build]
+cmds = ["echo 'Using Dockerfile - skip nixpacks'"]
+
+[start]
+cmd = "/usr/local/bin/docker-entrypoint.sh"
