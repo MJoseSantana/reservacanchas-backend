@@ -29,7 +29,7 @@ COPY . .
 
 # Instalar dependencias de PHP (sin scripts para evitar errores con Sanctum)
 RUN composer install --no-dev --no-scripts \
-    && composer dump-autoload --optimize --classmap-authoritative
+    && composer dump-autoload --optimize --classmap-authoritative --no-scripts
 
 # Configurar permisos
 RUN chown -R www-data:www-data /var/www/html \
