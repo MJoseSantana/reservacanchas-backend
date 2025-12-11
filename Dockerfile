@@ -27,8 +27,9 @@ WORKDIR /var/www/html
 # Copiar archivos del proyecto
 COPY . .
 
-# Instalar dependencias sin ejecutar scripts automáticos
-RUN composer install --no-dev --optimize-autoloader --no-scripts \
+# Limpiar vendor viejo y instalar dependencias limpias
+RUN rm -rf vendor/ \
+    && composer install --no-dev --optimize-autoloader --no-scripts \
     && composer run-script post-autoload-dump --no-interaction
 
 # Configurar permisos
