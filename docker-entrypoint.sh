@@ -5,30 +5,50 @@ echo "==> Starting entrypoint script..."
 
 # Crear archivo .env con variables de Railway
 echo "==> Creating .env file..."
+
+# Parsear DATABASE_URL si existe (Railway lo genera automáticamente)
+if [ ! -z "$DATABASE_URL" ]; then
+    echo "==> Using DATABASE_URL"
+    # Extraer componentes de postgresql://user:pass@host:port/dbname
+    DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+    DB_PASS=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+    DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
+    DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+    DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+else
+    # Usar variables individuales
+    DB_USER="${DB_USERNAME}"
+    DB_PASS="${DB_PASSWORD}"
+    DB_HOST="${DB_HOST}"
+    DB_PORT="${DB_PORT:-5432}"
+    DB_NAME="${DB_DATABASE}"
+fi
+
 cat > /var/www/html/.env << EOF
 APP_NAME="${APP_NAME:-Laravel}"
 APP_ENV="${APP_ENV:-production}"
-APP_KEY="${APP_KEY}"
+APP_KEY="${APP_KEY:-base64:H8UOjm/lnv4GBskOaO7fLK8mIqDkdBjUJDnnkwgxJ10=}"
 APP_DEBUG="${APP_DEBUG:-false}"
 APP_URL="${APP_URL:-https://web-production-117f.up.railway.app}"
 
-DB_CONNECTION="${DB_CONNECTION:-pgsql}"
-DB_HOST="${DB_HOST}"
-DB_PORT="${DB_PORT:-5432}"
-DB_DATABASE="${DB_DATABASE}"
-DB_USERNAME="${DB_USERNAME}"
-DB_PASSWORD="${DB_PASSWORD}"
+DB_CONNECTION=pgsql
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_DATABASE=${DB_NAME}
+DB_USERNAME=${DB_USER}
+DB_PASSWORD=${DB_PASS}
 
-CACHE_STORE="${CACHE_STORE:-file}"
-SESSION_DRIVER="${SESSION_DRIVER:-file}"
-QUEUE_CONNECTION="${QUEUE_CONNECTION:-sync}"
+CACHE_STORE=file
+SESSION_DRIVER=file
+QUEUE_CONNECTION=sync
 
-LOG_CHANNEL="${LOG_CHANNEL:-stack}"
-LOG_LEVEL="${LOG_LEVEL:-error}"
+LOG_CHANNEL=stack
+LOG_LEVEL=error
 EOF
 
 echo "==> .env created successfully"
-cat /var/www/html/.env
+echo "DB_HOST: ${DB_HOST}"
+echo "DB_DATABASE: ${DB_NAME}"
 
 # Usar puerto de Railway
 export PORT=${PORT:-8080}
