@@ -40,11 +40,12 @@ RUN chown -R www-data:www-data /var/www/html \
 # Configurar Nginx
 COPY nginx.conf /etc/nginx/sites-available/default
 
+# Script de inicio
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Exponer puerto
 EXPOSE 8080
 
-# Script de inicio
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-ENTRYPOINT ["docker-entrypoint.sh"]
+# Usar CMD en lugar de ENTRYPOINT para mayor control
+CMD ["/usr/local/bin/docker-entrypoint.sh"]
