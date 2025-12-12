@@ -565,8 +565,8 @@ class CanchaController extends Controller
             $image = $request->file('imagen');
             $path = $image->store('canchas', 'public');
             
-            // Generar URL absoluta para que funcione en React Native
-            $url = url(Storage::url($path));
+            // Generar URL absoluta con dominio fijo de Railway
+            $url = 'https://web-production-117f.up.railway.app/storage/' . $path;
 
             // Agregar a la lista de imágenes
             $imagenes = $cancha->imagenes ?? [];

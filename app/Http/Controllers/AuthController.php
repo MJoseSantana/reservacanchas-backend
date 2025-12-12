@@ -285,8 +285,12 @@ class AuthController extends Controller
             $image = $request->file('imagen');
             $path = $image->store('perfiles', 'public');
             
-            // Generar URL absoluta
-            $url = url(\Storage::url($path));
+            // Generar URL absoluta - URL fija de Railway
+            $url = 'https://web-production-117f.up.railway.app/storage/' . $path;
+            
+            // Debug info
+            $fullPath = storage_path('app/public/' . $path);
+            $fileExists = file_exists($fullPath);
             
             // Actualizar usuario
             $usuario->foto_perfil = $url;
@@ -296,14 +300,21 @@ class AuthController extends Controller
                 'success' => true,
                 'message' => 'Foto de perfil actualizada exitosamente',
                 'data' => [
-                    'foto_perfil' => $url
+                    'foto_perfil' => $url,
+                    'debug' => [
+                        'path' => $path,
+                        'full_path' => $fullPath,
+                        'file_exists' => $fileExists,
+                        'storage_disk' => config('filesystems.default')
+                    ]
                 ]
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al subir foto de perfil: ' . $e->getMessage()
+                'message' => 'Error al subir foto de perfil: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ], 500);
         }
     }
