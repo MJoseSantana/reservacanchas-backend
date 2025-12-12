@@ -252,4 +252,59 @@ class AuthController extends Controller
             'user' => $request->user()
         ]);
     }
+
+    /**
+     * Subir foto de perfil - POST /api/auth/upload-profile-photo
+     */
+    public function uploadProfilePhoto(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'imagen' => 'required|image|mimes:jpeg,png,jpg|max:5120', // 5MB max
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $usuario = $request->user();
+            
+            // Eliminar foto anterior si existe
+            if ($usuario->foto_perfil) {
+                $oldPath = str_replace(url('/storage/'), '', $usuario->foto_perfil);
+                if ($oldPath && \Storage::disk('public')->exists($oldPath)) {
+                    \Storage::disk('public')->delete($oldPath);
+                }
+            }
+
+            // Guardar nueva imagen
+            $image = $request->file('imagen');
+            $path = $image->store('perfiles', 'public');
+            
+            // Generar URL absoluta
+            $url = url(\Storage::url($path));
+            
+            // Actualizar usuario
+            $usuario->foto_perfil = $url;
+            $usuario->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Foto de perfil actualizada exitosamente',
+                'data' => [
+                    'foto_perfil' => $url
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al subir foto de perfil: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

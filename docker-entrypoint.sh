@@ -60,6 +60,16 @@ if [ -f /etc/nginx/sites-available/default ]; then
     echo "==> Nginx configured for port $PORT"
 fi
 
+# Crear enlace simbólico para storage (imágenes públicas)
+echo "==> Creating storage link..."
+php artisan storage:link || echo "Storage link already exists"
+
+# Asegurar permisos correctos
+chmod -R 775 /var/www/html/storage
+chmod -R 775 /var/www/html/bootstrap/cache
+chown -R www-data:www-data /var/www/html/storage
+chown -R www-data:www-data /var/www/html/public/storage
+
 # Limpiar cachés de Laravel
 echo "==> Clearing Laravel caches..."
 php artisan config:clear

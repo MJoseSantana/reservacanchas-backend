@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::get('/profile', [AuthController::class, 'profile']);
         Route::put('/profile', [AuthController::class, 'updateProfile']);
+        Route::post('/upload-profile-photo', [AuthController::class, 'uploadProfilePhoto']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/verify-token', [AuthController::class, 'verifyToken']);
     });
