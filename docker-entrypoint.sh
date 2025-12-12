@@ -29,7 +29,7 @@ APP_NAME="${APP_NAME:-Laravel}"
 APP_ENV="${APP_ENV:-production}"
 APP_KEY="${APP_KEY:-base64:H8UOjm/lnv4GBskOaO7fLK8mIqDkdBjUJDnnkwgxJ10=}"
 APP_DEBUG="${APP_DEBUG:-false}"
-APP_URL="${APP_URL:-https://web-production-117f.up.railway.app}"
+APP_URL="https://web-production-117f.up.railway.app"
 
 DB_CONNECTION=pgsql
 DB_HOST=${DB_HOST}
@@ -38,6 +38,7 @@ DB_DATABASE=${DB_NAME}
 DB_USERNAME=${DB_USER}
 DB_PASSWORD=${DB_PASS}
 
+FILESYSTEM_DISK=public
 CACHE_STORE=file
 SESSION_DRIVER=file
 QUEUE_CONNECTION=sync
