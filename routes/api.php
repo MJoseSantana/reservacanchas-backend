@@ -24,6 +24,11 @@ Route::get('/health', function () {
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+
+    // Recuperación de contraseña con preguntas de seguridad
+    Route::post('/get-security-questions', [AuthController::class, 'getSecurityQuestions']);
+    Route::post('/verify-security-answers', [AuthController::class, 'verifySecurityAnswers']);
+    Route::post('/reset-password-with-questions', [AuthController::class, 'resetPasswordWithQuestions']);
 });
 
 // Canchas públicas
@@ -34,7 +39,7 @@ Route::post('/canchas/registro', [CanchaController::class, 'storeFromRegistratio
 
 // Rutas protegidas con Sanctum
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     // Auth
     Route::prefix('auth')->group(function () {
         Route::get('/profile', [AuthController::class, 'profile']);
@@ -42,10 +47,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/upload-profile-photo', [AuthController::class, 'uploadProfilePhoto']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/verify-token', [AuthController::class, 'verifyToken']);
+        Route::post('/security-questions', [AuthController::class, 'saveSecurityQuestions']);
     });
-    
+
     // Endpoint de prueba para debug
-    Route::get('/debug/user-info', function(\Illuminate\Http\Request $request) {
+    Route::get('/debug/user-info', function (\Illuminate\Http\Request $request) {
         $user = $request->user();
         return response()->json([
             'success' => true,
@@ -138,7 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/baneos', [SancionController::class, 'listarBaneos']);
         Route::post('/baneos', [SancionController::class, 'crearBaneo']);
         Route::put('/baneos/{id}/levantar', [SancionController::class, 'levantarBaneo']);
-        
+
         Route::get('/reportes', [SancionController::class, 'listarReportes']);
         Route::post('/reportes', [SancionController::class, 'crearReporte']);
         Route::put('/reportes/{id}', [SancionController::class, 'actualizarReporte']);

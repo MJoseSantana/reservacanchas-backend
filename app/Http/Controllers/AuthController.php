@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Usuario;
+use App\Models\PreguntaSeguridad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -91,17 +92,18 @@ class AuthController extends Controller
             // Verificar estado baneado primero
             if ($usuario->estaBaneado()) {
                 $baneo = $usuario->baneos()->activos()->first();
-                
+
                 $diasRestantes = null;
                 $isPermanent = false;
-                
+
                 if ($baneo->tipo_baneo === 'PERMANENT') {
                     $isPermanent = true;
                 } elseif ($baneo->expira_en) {
                     $diasRestantes = Carbon::now()->diffInDays($baneo->expira_en, false);
-                    if ($diasRestantes < 0) $diasRestantes = 0;
+                    if ($diasRestantes < 0)
+                        $diasRestantes = 0;
                 }
-                
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Tu cuenta está suspendida',
@@ -119,12 +121,12 @@ class AuthController extends Controller
             // Verificar estado pendiente (solo para dueños)
             if ($usuario->estado === 'pendiente') {
                 $tieneCanchas = false;
-                
+
                 // Si es dueño, verificar si tiene canchas registradas
                 if ($usuario->rol === 'dueno') {
                     $tieneCanchas = \App\Models\Cancha::where('dueno_id', $usuario->id)->exists();
                 }
-                
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Tu cuenta está pendiente de aprobación',
@@ -197,7 +199,7 @@ class AuthController extends Controller
     {
         try {
             $usuario = $request->user();
-            
+
             // Validar datos
             $validated = $request->validate([
                 'nombre' => 'sometimes|string|max:100',
@@ -206,7 +208,7 @@ class AuthController extends Controller
                 'fecha_nacimiento' => 'sometimes|date',
                 'foto_perfil' => 'sometimes|string|nullable',
             ]);
-            
+
             // Actualizar campos básicos
             $usuario->update($request->only(['nombre', 'apellido', 'telefono', 'fecha_nacimiento', 'foto_perfil']));
 
@@ -272,7 +274,7 @@ class AuthController extends Controller
             }
 
             $usuario = $request->user();
-            
+
             // Eliminar foto anterior si existe
             if ($usuario->foto_perfil) {
                 $oldPath = str_replace(url('/storage/'), '', $usuario->foto_perfil);
@@ -284,14 +286,14 @@ class AuthController extends Controller
             // Guardar nueva imagen
             $image = $request->file('imagen');
             $path = $image->store('perfiles', 'public');
-            
+
             // Generar URL absoluta - URL fija de Railway
             $url = 'https://web-production-117f.up.railway.app/storage/' . $path;
-            
+
             // Debug info
             $fullPath = storage_path('app/public/' . $path);
             $fileExists = file_exists($fullPath);
-            
+
             // Actualizar usuario
             $usuario->foto_perfil = $url;
             $usuario->save();
@@ -315,6 +317,213 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Error al subir foto de perfil: ' . $e->getMessage(),
                 'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+
+    // ========================================
+    // PREGUNTAS DE SEGURIDAD
+    // ========================================
+
+    /**
+     * Guardar preguntas de seguridad - POST /api/auth/security-questions
+     * Requiere autenticación
+     */
+    public function saveSecurityQuestions(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'questions' => 'required|array|size:3',
+                'questions.*.question' => 'required|string|min:10|max:255',
+                'questions.*.answer' => 'required|string|min:2|max:100',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $usuario = $request->user();
+
+            // Eliminar preguntas anteriores
+            PreguntaSeguridad::where('usuario_id', $usuario->id)->delete();
+
+            // Guardar nuevas preguntas
+            foreach ($request->questions as $index => $q) {
+                PreguntaSeguridad::create([
+                    'usuario_id' => $usuario->id,
+                    'pregunta' => $q['question'],
+                    'respuesta' => $q['answer'],
+                    'orden' => $index + 1,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Preguntas de seguridad guardadas exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar preguntas de seguridad: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener preguntas de seguridad por email - POST /api/auth/get-security-questions
+     * Público (para recuperación de contraseña)
+     */
+    public function getSecurityQuestions(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|email',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email requerido',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $usuario = Usuario::where('email', $request->email)->first();
+
+            if (!$usuario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No existe una cuenta con este correo electrónico'
+                ], 404);
+            }
+
+            $preguntas = PreguntaSeguridad::where('usuario_id', $usuario->id)
+                ->orderBy('orden')
+                ->get(['id', 'pregunta', 'orden']);
+
+            if ($preguntas->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este usuario no tiene preguntas de seguridad configuradas'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'user_id' => $usuario->id,
+                'questions' => $preguntas->map(function ($p) {
+                    return [
+                        'id' => $p->id,
+                        'question' => $p->pregunta,
+                        'orden' => $p->orden,
+                    ];
+                })
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener preguntas de seguridad: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar respuestas de seguridad - POST /api/auth/verify-security-answers
+     * Público (para recuperación de contraseña)
+     */
+    public function verifySecurityAnswers(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|integer|exists:usuarios,id',
+                'answers' => 'required|array|size:3',
+                'answers.*.question_id' => 'required|integer',
+                'answers.*.answer' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $allCorrect = true;
+
+            foreach ($request->answers as $answer) {
+                $pregunta = PreguntaSeguridad::where('id', $answer['question_id'])
+                    ->where('usuario_id', $request->user_id)
+                    ->first();
+
+                if (!$pregunta || !$pregunta->verificarRespuesta($answer['answer'])) {
+                    $allCorrect = false;
+                    break;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'verified' => $allCorrect
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al verificar respuestas: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Restablecer contraseña con preguntas de seguridad - POST /api/auth/reset-password-with-questions
+     * Público (después de verificar preguntas)
+     */
+    public function resetPasswordWithQuestions(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|integer|exists:usuarios,id',
+                'password' => 'required|min:6',
+                'password_confirmation' => 'required|same:password',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $usuario = Usuario::find($request->user_id);
+
+            if (!$usuario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Actualizar contraseña
+            $usuario->password = bcrypt($request->password);
+            $usuario->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contraseña actualizada exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al restablecer contraseña: ' . $e->getMessage()
             ], 500);
         }
     }
